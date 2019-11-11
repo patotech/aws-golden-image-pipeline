@@ -1,0 +1,145 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Resources:
+  # ########################################################################
+  # Security
+  # ########################################################################
+
+  # IAM Role for CodeBuild and CodePipeline
+  GoldenAMIBuildRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: GoldenAMIBuildRole
+      Description: Rol de construcción para la AMI base
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - sts:AssumeRole
+            Principal:
+              Service: 
+                - codebuild.amazonaws.com
+                - codepipeline.amazonaws.com
+      Policies:
+        - PolicyName: TemplateEC2InstancePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                - 'logs:*'
+                - 'ec2:CreateNetworkInterface'
+                - 'ec2:DescribeNetworkInterfaces'
+                - 'ec2:DeleteNetworkInterface'
+                - 'ec2:DescribeSubnets'
+                - 'ec2:DescribeSecurityGroups'
+                - 'ec2:DescribeDhcpOptions'
+                - 'ec2:DescribeVpcs'
+                - 'ec2:CreateNetworkInterfacePermission'
+                Effect: Allow
+                Resource: '*'
+        - PolicyName: GoldenAMIRepoReadAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                - 'codecommit:BatchGet*'
+                - 'codecommit:BatchDescribe*'
+                - 'codecommit:Get*'
+                - 'codecommit:Describe*'
+                - 'codecommit:List*'
+                - 'codecommit:GitPull'
+                Effect: Allow
+                Resource: 'arn:aws:codecommit:*:*:GoldenAMIRepo'
+      Tags:
+        - Key: motif
+          Value: cf-golden-ami-demo
+
+  #
+  # Repositorio donde estarán los templates para generar la AMI
+  #
+  GoldenAMIRepo:
+    Type: AWS::CodeCommit::Repository
+    Properties:
+      RepositoryName: GoldenAMIRepo
+      RepositoryDescription: Repositorio para generar template de AMI
+      Tags:
+        - Key: motif
+          Value: ptb-cf-golden-ami-demo
+  
+  #
+  # Bucket S3 para artefactos de CodePipeline
+  # 
+  GoldenAMIS3PipelineBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: golden-ami-s3-bucket
+    DeletionPolicy: Delete
+
+  #
+  # Proyecto que hace la labor de construir la AMI
+  #
+  GoldenAMIBuild:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      ServiceRole:
+        Fn::GetAtt: [ GoldenAMIBuildRole, Arn ]
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/amazonlinux2-x86_64-standard:1.0
+      Source:
+        Type: CODEPIPELINE
+      TimeoutInMinutes: 10
+      Cache:
+        Type: S3
+        Location: 
+          Ref: GoldenAMIS3PipelineBucket
+
+  #
+  # Pipeline que se encarga de la coordinación de la construcción 
+  # de la AMI
+  #
+  GoldenAMIPipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      RoleArn:
+        Fn::GetAtt: [ GoldenAMIBuildRole, Arn ]
+      Stages:
+        - Name: GoldenAMISource
+          Actions:
+            - Name: GoldenAMICheckout
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: CodeCommit
+                Version: 1
+              OutputArtifacts:
+                - Name: GoldenAMISource
+              Configuration:
+                RepositoryName: GoldenAMIRepo
+                BranchName: master
+                PollForSourceChanges: false
+        - Name: GoldenAMIBuild
+          Actions:
+            - Name: GoldenAMIBuild
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: 1
+              Configuration:
+                ProjectName: GoldenAMIBuild
+                PrimarySource: GoldenAMISource
+              InputArtifacts:
+                - Name: GoldenAMISource
+      ArtifactStore:
+        Type: S3
+        Location:
+          Ref: GoldenAMIS3PipelineBucket
+      Tags:
+        - Key: motif
+          Value: cf-golden-ami-demo
