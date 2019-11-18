@@ -23,6 +23,16 @@ Resources:
                 - codebuild.amazonaws.com
                 - codepipeline.amazonaws.com
       Policies:
+        - PolicyName: S3GoldenImageBucketPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                - 's3:Get*'
+                - 's3:List*'
+                - 's3:Put*'
+                Effect: Allow
+                Resource: "arn:aws:s3:::golden-ami-s3-bucket/*"
         - PolicyName: TemplateEC2InstancePolicy
           PolicyDocument:
             Version: '2012-10-17'
@@ -50,8 +60,17 @@ Resources:
                 - 'codecommit:Describe*'
                 - 'codecommit:List*'
                 - 'codecommit:GitPull'
+                - 'codecommit:Upload*'
                 Effect: Allow
                 Resource: 'arn:aws:codecommit:*:*:GoldenAMIRepo'
+        - PolicyName: GoldenAMIBuildProject
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                - 'codebuild:*'
+                Effect: Allow
+                Resource: 'arn:aws:codebuild:*:*:project/GoldenAMIBuild'                
       Tags:
         - Key: motif
           Value: cf-golden-ami-demo
