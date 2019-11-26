@@ -15,11 +15,25 @@
         "source_ami_filter": {
             "filters": {
                 "virtualization-type": "hvm",
-                "name": "amzn-ami*-ebs",
+                "name": "amzn2-ami-hvm-*",
                 "root-device-type": "ebs"
             },
-            "owners": ["659999746382"],
+            "owners": ["amazon"],
             "most_recent": true
+        },
+        "vpc_filter": {
+            "filters": {
+                "tag:motif": "golden-ami-vpc",
+                "isDefault": "false",
+                "cidr": "/16"
+            }
+        },
+        "subnet_filter": {
+            "filters": {
+                "tag:motif": "golden-ami-subnet"
+            },
+            "most_free": true,
+            "random": false
         }
     }],
 

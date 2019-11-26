@@ -33,6 +33,46 @@ Resources:
                 - 's3:Put*'
                 Effect: Allow
                 Resource: "arn:aws:s3:::golden-ami-s3-bucket/*"
+        - PolicyName: PackerEC2Policy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                - 'ec2:AttachVolume'
+                - 'ec2:AuthorizeSecurityGroupIngress'
+                - 'ec2:CreateImage'
+                - 'ec2:CopyImage'
+                - 'ec2:CreateKeypair'
+                - 'ec2:CreateSecurityGroup'
+                - 'ec2:CreateSnapshot'
+                - 'ec2:CreateTags'
+                - 'ec2:CreateVolume'
+                - 'ec2:DeleteKeyPair'
+                - 'ec2:DeleteSecurityGroup'
+                - 'ec2:DeleteSnapshot'
+                - 'ec2:DeleteVolume'
+                - 'ec2:DeregisterImage'
+                - 'ec2:DescribeImageAttribute'
+                - 'ec2:DescribeImages'
+                - 'ec2:DescribeInstances'
+                - 'ec2:DescribeInstanceStatus'
+                - 'ec2:DescribeRegions'
+                - 'ec2:DescribeSecurityGroups'
+                - 'ec2:DescribeSnapshots'
+                - 'ec2:DescribeSubnets'
+                - 'ec2:DescribeTags'
+                - 'ec2:DescribeVolumes'
+                - 'ec2:DetachVolume'
+                - 'ec2:GetPasswordData'
+                - 'ec2:ModifyImageAttribute'
+                - 'ec2:ModifyInstanceAttribute'
+                - 'ec2:ModifySnapshotAttribute'
+                - 'ec2:RegisterImage'
+                - 'ec2:RunInstances'
+                - 'ec2:StopInstances'
+                - 'ec2:TerminateInstances'
+                Effect: Allow
+                Resource: '*'
         - PolicyName: TemplateEC2InstancePolicy
           PolicyDocument:
             Version: '2012-10-17'
@@ -62,7 +102,7 @@ Resources:
                 - 'codecommit:GitPull'
                 - 'codecommit:Upload*'
                 Effect: Allow
-                Resource: 'arn:aws:codecommit:*:*:GoldenAMIRepo'
+                Resource: 'arn:aws:codecommit:*:*:GoldenAMIRepo*'
         - PolicyName: GoldenAMIBuildProject
           PolicyDocument:
             Version: '2012-10-17'
@@ -70,7 +110,7 @@ Resources:
               - Action:
                 - 'codebuild:*'
                 Effect: Allow
-                Resource: 'arn:aws:codebuild:*:*:project/GoldenAMIBuild'                
+                Resource: 'arn:aws:codebuild:*:*:project/GoldenAMIBuild*'                
       Tags:
         - Key: motif
           Value: cf-golden-ami-demo
@@ -125,6 +165,7 @@ Resources:
   GoldenAMIPipeline:
     Type: AWS::CodePipeline::Pipeline
     Properties:
+      Name: GoldeAMIPipelineDemo
       RoleArn:
         Fn::GetAtt: [ GoldenAMIBuildRole, Arn ]
       Stages:
@@ -136,12 +177,12 @@ Resources:
                 Owner: AWS
                 Provider: CodeCommit
                 Version: 1
-              OutputArtifacts:
-                - Name: GoldenAMISource
               Configuration:
                 RepositoryName: GoldenAMIRepo
                 BranchName: master
                 PollForSourceChanges: false
+              OutputArtifacts:
+                - Name: GoldenAMISource
         - Name: GoldenAMIBuild
           Actions:
             - Name: GoldenAMIBuild
@@ -151,7 +192,8 @@ Resources:
                 Provider: CodeBuild
                 Version: 1
               Configuration:
-                ProjectName: GoldenAMIBuild
+                ProjectName: 
+                  Ref: GoldenAMIBuild
                 PrimarySource: GoldenAMISource
               InputArtifacts:
                 - Name: GoldenAMISource
@@ -162,3 +204,29 @@ Resources:
       Tags:
         - Key: motif
           Value: cf-golden-ami-demo
+
+  #
+  # VPC para la construcción del Golden AMI
+  #
+  GoldenAMIVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: false
+      EnableDnsHostnames: false
+      Tags:
+        - Key: motif
+          Value: golden-ami-vpc
+
+  #
+  # Subnet para la creación de la Golden AMI
+  #
+  GoldenAMISubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: GoldenAMIVPC
+      CidrBlock: 10.0.0.0/24
+      Tags:
+        - Key: motif
+          Value: golden-ami-subnet
