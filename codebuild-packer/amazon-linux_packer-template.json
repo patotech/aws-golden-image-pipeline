@@ -25,7 +25,7 @@
             "filters": {
                 "tag:motif": "golden-ami-vpc",
                 "isDefault": "false",
-                "cidr": "/16"
+                "cidr": "10.0.0.0/16"
             }
         },
         "subnet_filter": {

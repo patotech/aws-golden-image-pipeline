@@ -230,3 +230,60 @@ Resources:
       Tags:
         - Key: motif
           Value: golden-ami-subnet
+
+  #
+  # Internet Gateway para la Golden AMI VPC
+  #
+  GoldenAMIIgw:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key : motif
+          Value : golden-ami-igw
+
+  #
+  # Internet Gateway attach para la Golden AMI VPC
+  #
+  GoldenAMIIgwAttach:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+        Ref: GoldenAMIVPC
+      InternetGatewayId:
+        Ref: GoldenAMIIgw
+
+  # 
+  # Route Table Golden AMI VPC
+  #
+  GoldenAMIIgwRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: GoldenAMIVPC
+      Tags:
+        - Key : motif
+          Value : golden-ami-route-table
+
+  #
+  # Route Igw Golden AMI VPC
+  #
+  GoldenAMIIgwRoute:
+    Type: AWS::EC2::Route
+    DependsOn: GoldenAMIIgw
+    Properties:
+      RouteTableId:
+        Ref: GoldenAMIIgwRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: GoldenAMIIgw
+
+  #
+  # Golden AMI Subnet route Table Association
+  #
+  GoldenAMIRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId:
+        Ref: GoldenAMISubnet
+      RouteTableId:
+        Ref: GoldenAMIIgwRouteTable
